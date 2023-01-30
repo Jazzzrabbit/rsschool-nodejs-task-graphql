@@ -6,7 +6,10 @@ import type { PostEntity } from '../../utils/DB/entities/DBPosts';
 const plugin: FastifyPluginAsyncJsonSchemaToTs = async (
   fastify
 ): Promise<void> => {
-  fastify.get('/', async function (request, reply): Promise<PostEntity[]> {});
+  fastify.get('/', async function (request, reply): Promise<PostEntity[]> {
+    const posts = await fastify.db.posts.findMany();
+    return reply.send(posts);
+  });
 
   fastify.get(
     '/:id',
@@ -15,7 +18,13 @@ const plugin: FastifyPluginAsyncJsonSchemaToTs = async (
         params: idParamSchema,
       },
     },
-    async function (request, reply): Promise<PostEntity> {}
+    async function (request, reply): Promise<PostEntity> {
+      const { id } = request.params;
+      const post = await fastify.db.posts.findOne({ key: 'id', equals: id });
+
+      if (!post) throw fastify.httpErrors.notFound();
+      return reply.send(post);
+    }
   );
 
   fastify.post(
@@ -25,7 +34,16 @@ const plugin: FastifyPluginAsyncJsonSchemaToTs = async (
         body: createPostBodySchema,
       },
     },
-    async function (request, reply): Promise<PostEntity> {}
+    async function (request, reply): Promise<PostEntity> {
+      const { body } = request;
+
+      try {
+        const newPost = await fastify.db.posts.create(body);
+        return reply.send(newPost);
+      } catch (error) {
+        throw fastify.httpErrors.badRequest();
+      }
+    }
   );
 
   fastify.delete(
@@ -35,7 +53,16 @@ const plugin: FastifyPluginAsyncJsonSchemaToTs = async (
         params: idParamSchema,
       },
     },
-    async function (request, reply): Promise<PostEntity> {}
+    async function (request, reply): Promise<PostEntity> {
+      const { id } = request.params;
+
+      try {
+        const deletedPost = await fastify.db.posts.delete(id);
+        return reply.status(404).send(deletedPost);
+      } catch (error) {
+        throw fastify.httpErrors.badRequest();
+      }
+    }
   );
 
   fastify.patch(
@@ -46,7 +73,17 @@ const plugin: FastifyPluginAsyncJsonSchemaToTs = async (
         params: idParamSchema,
       },
     },
-    async function (request, reply): Promise<PostEntity> {}
+    async function (request, reply): Promise<PostEntity> {
+      const { id } = request.params;
+      const { body } = request;
+
+      try {
+        const updatedPost = await fastify.db.posts.change(id, body);
+        return reply.send(updatedPost);
+      } catch (error) {
+        throw fastify.httpErrors.badRequest();
+      }
+    }
   );
 };
 
